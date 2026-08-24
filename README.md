@@ -16,6 +16,6 @@ Cascabel Covers automatically applies box art to your NES, SNES, and N64 ROMs. I
    ```bash
    ./install.sh
    ```
-3. Open **Cascabel Covers** from your Cinnamon menu.
+3. Open **Cascabel Covers** from your application menu.
 
 Once open, just flip the switch to "Active" and it will start scanning, downloading, and applying covers automatically. To revert the icons and remove the app, simply use the "Uninstall" button in the application window.

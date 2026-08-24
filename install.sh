@@ -43,7 +43,7 @@ EOF
 
 echo ""
 echo "Done. You can open it two ways:"
-echo "  - Search for 'Cascabel Covers' in the Cinnamon menu"
+echo "  - Search for 'Cascabel Covers' in your application menu"
 echo "  - Run: cascabel-covers   (if ~/.local/bin is in your PATH)"
 echo ""
 echo "To uninstall, open the app and use the 'Uninstall' button."

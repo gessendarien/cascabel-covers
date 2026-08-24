@@ -290,35 +290,23 @@ class CascabelCoversWindow(Gtk.Window):
             transient_for=self,
             flags=0,
             message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.YES_NO,
             text="Uninstall Cascabel Covers?",
         )
         dialog.format_secondary_text(
-            "Do you want to revert all applied covers, or keep them applied to your ROMs? (Keeping them leaves the cache intact)."
-        )
-        dialog.add_buttons(
-            "Cancel", Gtk.ResponseType.CANCEL,
-            "Keep Covers", Gtk.ResponseType.NO,
-            "Remove Completely", Gtk.ResponseType.YES
+            "Are you sure? This will revert all applied covers and permanently delete your downloaded covers cache."
         )
         response = dialog.run()
         dialog.destroy()
-        if response == Gtk.ResponseType.CANCEL or response == Gtk.ResponseType.DELETE_EVENT:
+        if response != Gtk.ResponseType.YES:
             return
 
         self.state_label.set_text("Uninstalling...")
         self.switch.set_sensitive(False)
 
         def worker():
-            if response == Gtk.ResponseType.YES:
-                revert_all()
-                shutil.rmtree(BASE_DIR, ignore_errors=True)
-            else:
-                if os.path.exists(REGISTRY_PATH):
-                    try:
-                        os.remove(REGISTRY_PATH)
-                    except OSError:
-                        pass
-                        
+            revert_all()
+            shutil.rmtree(BASE_DIR, ignore_errors=True)
             for path in (DESKTOP_FILE, BIN_LINK):
                 if os.path.islink(path) or os.path.exists(path):
                     try:
