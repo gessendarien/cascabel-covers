@@ -11,7 +11,7 @@ VERSION=$1
 echo "Bumping version to $VERSION..."
 
 # Update README.md
-sed -i "s/\*\*Version\*\*: .*/\*\*Version\*\*: $VERSION/g" README.md
+sed -i "s/badge\/Version-.*-blue/badge\/Version-$VERSION-blue/g" README.md
 
 # Update cascabel-covers.py
 sed -i "s/BY GESSÉN DARIÉN .*<\/span>/BY GESSÉN DARIÉN $VERSION<\/span>/g" cascabel-covers.py

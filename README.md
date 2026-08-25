@@ -1,8 +1,6 @@
 # Cascabel Covers
 
-**Version**: 0.0.2
-**OS**: Linux Mint (Cinnamon / Nemo)  
-**License**: GPL  
+![Version](https://img.shields.io/badge/Version-0.0.2-blue) ![OS](https://img.shields.io/badge/OS-Linux_Mint_(Cinnamon_%2F_Nemo)-green) ![License](https://img.shields.io/badge/License-GPL-orange)
 
 Cascabel Covers automatically applies box art to your retro ROMs (NES, SNES, N64, GameCube, Wii, PS1, PS2, Xbox, etc). It scans your game folder and downloads the correct cover art from the libretro-thumbnails repository, setting it as the custom file icon in the Nemo file manager.
 
