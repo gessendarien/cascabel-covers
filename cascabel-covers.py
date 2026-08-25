@@ -9,7 +9,7 @@ Cover art source: public libretro-thumbnails repositories
 """
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib, Gdk
+from gi.repository import Gtk, GLib, Gdk, Gio
 
 import os
 import locale
@@ -83,7 +83,16 @@ SYSTEMS = {
         {"repo": "Sony_-_PlayStation", "label": "PS1"},
         {"repo": "Sega_-_Dreamcast", "label": "Dreamcast"}
     ],
-    ".zip": [{"repo": "MAME", "label": "MAME"}],
+    ".zip": [
+        {"repo": "MAME", "label": "MAME"},
+        {"repo": "Nintendo_-_Nintendo_Entertainment_System", "label": "NES"},
+        {"repo": "Nintendo_-_Super_Nintendo_Entertainment_System", "label": "SNES"},
+        {"repo": "Nintendo_-_Nintendo_64", "label": "N64"},
+        {"repo": "Nintendo_-_Game_Boy", "label": "GB"},
+        {"repo": "Nintendo_-_Game_Boy_Color", "label": "GBC"},
+        {"repo": "Nintendo_-_Game_Boy_Advance", "label": "GBA"},
+        {"repo": "Sega_-_Mega_Drive_-_Genesis", "label": "Genesis"}
+    ],
     ".7z": [{"repo": "MAME", "label": "MAME"}]
 }
 
@@ -196,24 +205,37 @@ def download_cover(repo, title):
     os.makedirs(local_dir, exist_ok=True)
     safe_name = title.replace("/", "_") + ".png"
     local_path = os.path.join(local_dir, safe_name)
-    if os.path.exists(local_path):
+    
+    if os.path.exists(local_path) and os.path.getsize(local_path) > 300:
         return local_path
 
-    url = RAW_BASE.format(repo=repo) + urllib.parse.quote(title + ".png")
-    req = urllib.request.Request(url, headers=UA_HEADERS)
-    with urllib.request.urlopen(req, timeout=30) as r, open(local_path, "wb") as f:
-        shutil.copyfileobj(r, f)
-    return local_path
+    def _fetch(t, save_path, depth=0):
+        if depth > 3: raise Exception("Too many symlinks")
+        url = RAW_BASE.format(repo=repo) + urllib.parse.quote(t + ".png")
+        req = urllib.request.Request(url, headers=UA_HEADERS)
+        with urllib.request.urlopen(req, timeout=30) as r:
+            data = r.read()
+            # GitHub raw symlinks are just plain text containing the target filename
+            if len(data) < 300 and data.strip().endswith(b".png"):
+                target = data.decode("utf-8").strip()[:-4]
+                return _fetch(target, save_path, depth + 1)
+            
+            with open(save_path, "wb") as f:
+                f.write(data)
+        return save_path
+
+    return _fetch(title, local_path)
 
 # ---------------------------------------------------------------------------
 # Apply / revert the file icon (via GVFS metadata, same thing Nemo uses)
 # ---------------------------------------------------------------------------
 def apply_icon(file_path, cover_path):
-    uri = "file://" + urllib.parse.quote(os.path.abspath(cover_path))
-    subprocess.run(
-        ["gio", "set", "-t", "string", file_path, "metadata::custom-icon", uri],
-        check=False, capture_output=True,
-    )
+    try:
+        uri = "file://" + urllib.parse.quote(os.path.abspath(cover_path))
+        f = Gio.File.new_for_path(file_path)
+        f.set_attribute_string("metadata::custom-icon", uri, Gio.FileQueryInfoFlags.NONE, None)
+    except Exception:
+        pass
 
 def revert_icon(file_path):
     subprocess.run(
@@ -276,6 +298,7 @@ def scan_and_apply(status_cb, force_rescan=False, lang_dict=None):
                 continue
             full = os.path.join(dirpath, fn)
             if not force_rescan and full in registry and os.path.exists(registry[full]):
+                apply_icon(full, registry[full])
                 skipped += 1
                 continue
 
@@ -520,7 +543,7 @@ class CascabelCoversWindow(Gtk.Window):
         outer.pack_start(self.uninstall_btn, False, False, 0)
         
         # Footer
-        footer = Gtk.Label(label="BY GESSÉN DARIÉN")
+        footer = Gtk.Label(label="BY GESSÉN DARIÉN 0.0.1")
         footer.get_style_context().add_class("footer-label")
         footer.set_margin_top(10)
         outer.pack_end(footer, False, False, 0)
