@@ -24,6 +24,8 @@ import subprocess
 import urllib.request
 import urllib.parse
 
+APP_VERSION = "0.0.2"
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
@@ -408,7 +410,8 @@ def get_strings():
             "folder_btn_tooltip": "Cambiar carpeta de ROMs",
             "no_folder": "Ninguna carpeta seleccionada",
             "select_first": "Elige primero una carpeta de juegos",
-            "roms_folder_label": "Carpeta de juegos a escanear:"
+            "roms_folder_label": "Carpeta de juegos a escanear:",
+            "update_available_msg": "¡Nueva versión {version} disponible!"
         }
     else:
         return {
@@ -428,7 +431,8 @@ def get_strings():
             "folder_btn_tooltip": "Change ROMs folder",
             "no_folder": "No folder selected",
             "select_first": "Select a games folder first",
-            "roms_folder_label": "Games folder to scan:"
+            "roms_folder_label": "Games folder to scan:",
+            "update_available_msg": "New version {version} is available!"
         }
 
 class CascabelCoversWindow(Gtk.Window):
@@ -547,16 +551,18 @@ class CascabelCoversWindow(Gtk.Window):
         outer.pack_start(self.uninstall_btn, False, False, 0)
         
         # Footer
-        footer = Gtk.Label()
-        footer.set_markup('<a href="https://github.com/gessendarien/cascabel-covers" title="GitHub"><span underline="none">BY GESSÉN DARIÉN 0.0.2</span></a>')
-        footer.get_style_context().add_class("footer-label")
-        footer.set_margin_top(10)
-        outer.pack_end(footer, False, False, 0)
+        self.footer = Gtk.Label()
+        self.footer.set_markup(f'<a href="https://github.com/gessendarien/cascabel-covers" title="GitHub"><span underline="none">BY GESSÉN DARIÉN {APP_VERSION}</span></a>')
+        self.footer.get_style_context().add_class("footer-label")
+        self.footer.set_margin_top(10)
+        outer.pack_end(self.footer, False, False, 0)
 
         self.connect("destroy", Gtk.main_quit)
 
         if "--auto-scan" in sys.argv and self.config["roms_path"]:
             GLib.idle_add(self.on_rescan, None)
+
+        threading.Thread(target=self._run_update_check, daemon=True).start()
 
     def shorten_path(self, path):
         home = os.path.expanduser("~")
@@ -594,6 +600,32 @@ class CascabelCoversWindow(Gtk.Window):
 
     def set_status_threadsafe(self, msg):
         GLib.idle_add(self.subtitle_label.set_text, msg)
+
+    def _run_update_check(self):
+        try:
+            req = urllib.request.Request("https://api.github.com/repos/gessendarien/cascabel-covers/tags", headers={"User-Agent": "cascabel-covers"})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                data = json.load(r)
+                if data and isinstance(data, list):
+                    latest_tag = data[0].get("name", "").lstrip("v")
+                    
+                    def parse_v(v_str):
+                        # Safely parse version strings like "0.0.2" into tuples (0, 0, 2)
+                        return tuple(int(x) for x in v_str.split(".") if x.isdigit())
+                        
+                    if parse_v(latest_tag) > parse_v(APP_VERSION):
+                        GLib.idle_add(self.on_update_available, latest_tag)
+        except Exception:
+            pass # Ignore network or parsing errors on startup
+
+    def on_update_available(self, version):
+        self.footer.get_style_context().add_class("update-available")
+        
+        msg = self.strings.get("update_available_msg", "New version {version} is available!").format(version=version)
+        try:
+            subprocess.run(["notify-send", "-a", "Cascabel Covers", "Cascabel Covers", msg], check=False)
+        except Exception:
+            pass
 
     # -- switch ---------------------------------------------------------------
     def on_switch_toggled(self, switch, state):
@@ -773,6 +805,14 @@ def main():
         font-size: 10px;
         letter-spacing: 2px;
         text-decoration-line: none;
+    }
+    @keyframes blink {
+        0% { color: #555555; }
+        50% { color: #ffffff; }
+        100% { color: #555555; }
+    }
+    .update-available, .update-available link {
+        animation: blink 2s infinite linear;
     }
     '''
     css_provider = Gtk.CssProvider()
