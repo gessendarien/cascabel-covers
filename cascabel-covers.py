@@ -185,12 +185,16 @@ def find_best_match(rom_title, titles):
         if rom_tags:
             overlap = len(rom_tags.intersection(t_tags))
             tag_score += overlap * 0.1
+            tag_score -= len(t_tags - rom_tags) * 0.01
         else:
             # If ROM has no region tags, prioritize USA then Japan
             if any("usa" in tag for tag in t_tags):
                 tag_score += 0.05
             elif any("japan" in tag for tag in t_tags):
                 tag_score += 0.02
+            
+            # Penalize all extra tags so we prefer the cleanest release over demos/betas
+            tag_score -= len(t_tags) * 0.01
                 
         score = base_score + tag_score
         if score > best_score:
