@@ -4,7 +4,7 @@
 **OS**: Linux Mint (Cinnamon / Nemo)  
 **License**: GPL  
 
-Cascabel Covers automatically applies box art to your NES, SNES, and N64 ROMs. It scans your home folder and downloads the correct cover art from the libretro-thumbnails repository, setting it as the custom file icon in the Nemo file manager. Covers are cached in `~/.cascabel-covers/covers/`.
+Cascabel Covers automatically applies box art to your retro ROMs (NES, SNES, N64, GameCube, Wii, PS1, PS2, Xbox, etc). It scans your home folder and downloads the correct cover art from the libretro-thumbnails repository, setting it as the custom file icon in the Nemo file manager. Covers are cached in `~/.cascabel-covers/covers/`.
 
 *Note: This application is designed specifically for the Linux Mint Cinnamon edition, as it relies on its default file manager (Nemo) to properly apply and refresh the custom icons.*
 
@@ -18,6 +18,7 @@ Cascabel Covers automatically applies box art to your NES, SNES, and N64 ROMs. I
    ```bash
    ./install.sh
    ```
-3. Open **Cascabel Covers** from your application menu.
 
-Once open, just flip the switch to "Active" and it will start scanning, downloading, and applying covers automatically. To revert the icons and remove the app, simply use the "Uninstall" button in the application window.
+The installer will automatically scan your home folder and apply the covers immediately. 
+
+If you ever add new games or want to uninstall, you can open **Cascabel Covers** from your application menu.

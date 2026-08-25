@@ -34,7 +34,7 @@ cat > "$DESKTOP_DIR/cascabel-covers.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Cascabel Covers
-Comment=Apply box art as the icon for your NES, SNES and N64 ROMs
+Comment=Apply box art as the icon for your retro ROMs
 Exec=$APP_DIR/cascabel-covers.py
 Icon=applications-games
 Terminal=false
@@ -42,8 +42,6 @@ Categories=Game;Utility;
 EOF
 
 echo ""
-echo "Done. You can open it two ways:"
-echo "  - Search for 'Cascabel Covers' in your application menu"
-echo "  - Run: cascabel-covers   (if ~/.local/bin is in your PATH)"
-echo ""
-echo "To uninstall, open the app and use the 'Uninstall' button."
+echo "Done! Installation successful."
+echo "Launching Cascabel Covers..."
+"$APP_DIR/cascabel-covers.py" --auto-scan &
