@@ -6,6 +6,7 @@ Cascabel Covers automatically applies box art to your retro ROMs (NES, SNES, N64
 
 *Note: This application is designed specifically for the Linux Mint Cinnamon edition, as it relies on its default file manager (Nemo) to properly apply and refresh the custom icons.*
 
+![](screenshot.png)
 ---
 
 ## Installation
