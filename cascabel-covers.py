@@ -31,6 +31,8 @@ BASE_DIR = os.path.expanduser("~/.cascabel-covers")
 COVERS_DIR = os.path.join(BASE_DIR, "covers")
 REGISTRY_PATH = os.path.join(BASE_DIR, "registry.json")
 STATS_PATH = os.path.join(BASE_DIR, "stats.json")
+CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
+CANCEL_SCAN = False
 DESKTOP_FILE = os.path.expanduser("~/.local/share/applications/cascabel-covers.desktop")
 BIN_LINK = os.path.expanduser("~/.local/bin/cascabel-covers")
 
@@ -235,20 +237,40 @@ def save_stats(applied, failed):
     with open(STATS_PATH, "w") as f:
         json.dump({"applied": applied, "failed": failed}, f)
 
+
+def load_config():
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH) as f:
+            c = json.load(f)
+            c["first_time"] = False
+            return c
+    return {"roms_path": "", "first_time": True}
+
+def save_config(conf):
+    os.makedirs(BASE_DIR, exist_ok=True)
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(conf, f)
+
 # Main scan
 # ---------------------------------------------------------------------------
 def scan_and_apply(status_cb, force_rescan=False, lang_dict=None):
+    global CANCEL_SCAN
     registry = load_registry()
     applied = skipped = failed = 0
     index_cache = {}
     failed_log = []
     
-    root = os.path.expanduser("~")
+    root = load_config().get("roms_path", os.path.expanduser("~"))
     for dirpath, dirnames, filenames in os.walk(root):
+        if CANCEL_SCAN:
+            break
+            
         # Skip hidden directories
         dirnames[:] = [d for d in dirnames if not d.startswith('.')]
         
         for fn in filenames:
+            if CANCEL_SCAN:
+                break
             ext = os.path.splitext(fn)[1].lower()
             if ext not in SYSTEMS:
                 continue
@@ -263,6 +285,8 @@ def scan_and_apply(status_cb, force_rescan=False, lang_dict=None):
             best_repo = None
             
             for info in candidates:
+                if CANCEL_SCAN:
+                    break
                 repo = info["repo"]
                 if repo not in index_cache:
                     cache_file = os.path.join(COVERS_DIR, f"index_{repo}.json")
@@ -288,6 +312,9 @@ def scan_and_apply(status_cb, force_rescan=False, lang_dict=None):
                     best_score = s
                     best_repo = repo
             
+            if CANCEL_SCAN:
+                break
+                
             if not best_match:
                 failed += 1
                 failed_log.append(f"NOT FOUND (Low similarity or missing in DB): {fn}")
@@ -303,7 +330,7 @@ def scan_and_apply(status_cb, force_rescan=False, lang_dict=None):
                 failed_log.append(f"FAILED (Download/Apply Error): {fn} - {str(e)}")
 
     # Write the failed log
-    log_path = os.path.join(BASE_DIR, "no_encontrados.log")
+    log_path = os.path.join(BASE_DIR, "missing.log")
     if failed_log:
         with open(log_path, "w") as f:
             f.write("\n".join(failed_log))
@@ -350,7 +377,11 @@ def get_strings():
             "dialog_title": "¿Desinstalar Cascabel Covers?",
             "dialog_text": "¿Estás seguro? Esto revertirá todas las carátulas aplicadas y eliminará el caché.",
             "applying": "Aplicando carátulas de {system}...",
-            "downloading": "Descargando índice de {system}..."
+            "downloading": "Descargando índice de {system}...",
+            "folder_btn_tooltip": "Cambiar carpeta de ROMs",
+            "no_folder": "Ninguna carpeta seleccionada",
+            "select_first": "Elige primero una carpeta de juegos",
+            "roms_folder_label": "Carpeta de juegos a escanear:"
         }
     else:
         return {
@@ -366,7 +397,11 @@ def get_strings():
             "dialog_title": "Uninstall Cascabel Covers?",
             "dialog_text": "Are you sure? This will revert all applied covers and delete your cache.",
             "applying": "Applying {system} covers...",
-            "downloading": "Downloading {system} index..."
+            "downloading": "Downloading {system} index...",
+            "folder_btn_tooltip": "Change ROMs folder",
+            "no_folder": "No folder selected",
+            "select_first": "Select a games folder first",
+            "roms_folder_label": "Games folder to scan:"
         }
 
 class CascabelCoversWindow(Gtk.Window):
@@ -428,8 +463,46 @@ class CascabelCoversWindow(Gtk.Window):
         action_box.pack_end(self.spinner, False, False, 0)
         card.pack_end(action_box, False, False, 0)
         
+        
         outer.pack_start(card, False, False, 0)
-
+        
+        # Folder Selector Button
+        self.config = load_config()
+        self.folder_btn = Gtk.Button()
+        self.folder_btn.set_tooltip_text(self.strings["folder_btn_tooltip"])
+        self.folder_btn.get_style_context().add_class("folder-btn")
+        
+        # Folder Section Group
+        folder_section_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        
+        # Folder Title
+        self.folder_title_label = Gtk.Label(label=self.strings["roms_folder_label"])
+        self.folder_title_label.set_halign(Gtk.Align.START)
+        folder_section_box.pack_start(self.folder_title_label, False, False, 0)
+        
+        # Warning label (below title, above button)
+        self.warning_label = Gtk.Label(label="")
+        self.warning_label.set_halign(Gtk.Align.CENTER)
+        self.warning_label.get_style_context().add_class("warning-label")
+        folder_section_box.pack_start(self.warning_label, False, False, 0)
+        
+        folder_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        folder_box.set_halign(Gtk.Align.CENTER)
+        
+        folder_icon = Gtk.Image.new_from_icon_name("folder-symbolic", Gtk.IconSize.BUTTON)
+        initial_label = self.shorten_path(self.config["roms_path"]) if self.config["roms_path"] else self.strings["no_folder"]
+        self.folder_label = Gtk.Label(label=initial_label)
+        self.folder_label.set_ellipsize(3) # Pango.EllipsizeMode.END (3)
+        self.folder_label.set_max_width_chars(30)
+        
+        folder_box.pack_start(folder_icon, False, False, 0)
+        folder_box.pack_start(self.folder_label, False, False, 0)
+        self.folder_btn.add(folder_box)
+        self.folder_btn.connect("clicked", self.on_folder_clicked)
+        
+        folder_section_box.pack_start(self.folder_btn, False, False, 0)
+        outer.pack_start(folder_section_box, False, False, 0)
+        
         # Uninstall Button
         uninstall_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         uninstall_box.set_halign(Gtk.Align.CENTER)
@@ -454,8 +527,38 @@ class CascabelCoversWindow(Gtk.Window):
 
         self.connect("destroy", Gtk.main_quit)
 
-        if "--auto-scan" in sys.argv:
+        if "--auto-scan" in sys.argv and self.config["roms_path"]:
             GLib.idle_add(self.on_rescan, None)
+
+    def shorten_path(self, path):
+        home = os.path.expanduser("~")
+        if path.startswith(home):
+            return "~" + path[len(home):]
+        return path
+
+    def on_folder_clicked(self, _btn):
+        dialog = Gtk.FileChooserDialog(
+            title=self.strings["folder_btn_tooltip"],
+            parent=self,
+            action=Gtk.FileChooserAction.SELECT_FOLDER,
+        )
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OPEN, Gtk.ResponseType.OK,
+        )
+        dialog.set_current_folder(self.config["roms_path"])
+        
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            selected = dialog.get_filename()
+            self.config["roms_path"] = selected
+            self.config["first_time"] = False
+            save_config(self.config)
+            self.folder_label.set_text(self.shorten_path(selected))
+            self.warning_label.set_text("")
+            
+        dialog.destroy()
+
     def update_ui_state(self, active, msg=None):
         self.title_label.set_text(self.strings["active"] if active else self.strings["inactive"])
         if msg:
@@ -467,11 +570,19 @@ class CascabelCoversWindow(Gtk.Window):
     # -- switch ---------------------------------------------------------------
     def on_switch_toggled(self, switch, state):
         if self.working:
+            return False
+
+        if state and not self.config["roms_path"]:
+            GLib.idle_add(switch.set_active, False)
             return True
 
+        global CANCEL_SCAN
+        CANCEL_SCAN = False
         self.working = True
         switch.set_sensitive(False)
-        self.icon_btn.hide()
+        self.icon_btn.set_image(Gtk.Image.new_from_icon_name("media-playback-stop-symbolic", Gtk.IconSize.BUTTON))
+        self.icon_btn.show()
+        self.folder_btn.set_sensitive(False)
         self.spinner.show()
         self.spinner.start()
         self.title_label.set_text(self.strings["working"])
@@ -494,17 +605,30 @@ class CascabelCoversWindow(Gtk.Window):
         self.switch.set_sensitive(True)
         self.spinner.stop()
         self.spinner.hide()
+        self.icon_btn.set_image(Gtk.Image.new_from_icon_name("view-refresh-symbolic", Gtk.IconSize.BUTTON))
         self.icon_btn.show()
+        self.folder_btn.set_sensitive(True)
 
     # -- rescan ---------------------------------------------------------
     def on_rescan(self, _btn):
-        if self.working:
+        global CANCEL_SCAN
+        if not self.config["roms_path"]:
+            self.warning_label.set_text(self.strings["select_first"])
+            self.switch.set_active(False)
             return
             
+        self.warning_label.set_text("")
+        if self.working:
+            CANCEL_SCAN = True
+            return
+            
+        CANCEL_SCAN = False
         self.working = True
         self.switch.set_active(True)
         self.switch.set_sensitive(False)
-        self.icon_btn.hide()
+        self.icon_btn.set_image(Gtk.Image.new_from_icon_name("media-playback-stop-symbolic", Gtk.IconSize.BUTTON))
+        self.icon_btn.show()
+        self.folder_btn.set_sensitive(False)
         self.spinner.show()
         self.spinner.start()
         self.title_label.set_text(self.strings["scanning"])
@@ -537,6 +661,7 @@ class CascabelCoversWindow(Gtk.Window):
 
         self.title_label.set_text(self.strings["uninstalling"])
         self.switch.set_sensitive(False)
+        self.folder_btn.set_sensitive(False)
 
         def worker():
             revert_all()
@@ -569,6 +694,22 @@ def main():
     .subtitle-label {
         color: #aaaaaa;
         font-size: 12px;
+    }
+    .warning-label {
+        color: #ff5555;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    .folder-btn {
+        background-color: #242424;
+        color: #cccccc;
+        border-radius: 8px;
+        padding: 8px 12px;
+        border: 1px solid #333333;
+    }
+    .folder-btn:hover {
+        background-color: #2c2c2c;
+        color: #ffffff;
     }
     .refresh-btn {
         background: transparent;
