@@ -547,7 +547,7 @@ class CascabelCoversWindow(Gtk.Window):
         outer.pack_start(self.uninstall_btn, False, False, 0)
         
         # Footer
-        footer = Gtk.Label(label="BY GESSÉN DARIÉN 0.0.1")
+        footer = Gtk.Label(label="BY GESSÉN DARIÉN 0.0.2")
         footer.get_style_context().add_class("footer-label")
         footer.set_margin_top(10)
         outer.pack_end(footer, False, False, 0)

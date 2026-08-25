@@ -1,6 +1,6 @@
 # Cascabel Covers
 
-**Version**: 0.0.1  
+**Version**: 0.0.2
 **OS**: Linux Mint (Cinnamon / Nemo)  
 **License**: GPL  
 
