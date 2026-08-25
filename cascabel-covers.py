@@ -547,7 +547,8 @@ class CascabelCoversWindow(Gtk.Window):
         outer.pack_start(self.uninstall_btn, False, False, 0)
         
         # Footer
-        footer = Gtk.Label(label="BY GESSÉN DARIÉN 0.0.2")
+        footer = Gtk.Label()
+        footer.set_markup('<a href="https://github.com/gessendarien/cascabel-covers" title="GitHub"><span underline="none">BY GESSÉN DARIÉN 0.0.2</span></a>')
         footer.get_style_context().add_class("footer-label")
         footer.set_margin_top(10)
         outer.pack_end(footer, False, False, 0)
@@ -767,10 +768,11 @@ def main():
     .uninstall-btn:hover {
         color: #ff8b8b;
     }
-    .footer-label {
+    .footer-label, .footer-label link {
         color: #555555;
         font-size: 10px;
         letter-spacing: 2px;
+        text-decoration-line: none;
     }
     '''
     css_provider = Gtk.CssProvider()
